@@ -19,3 +19,10 @@ export const GetChannelMessages = async ({
     },
   })
 }
+
+export const FindChannelMessage = async ({ channel_id, message_id }) => {
+  return await discord({
+    method: 'GET',
+    url: `/channels/${channel_id}/messages/${message_id}`,
+  })
+}
