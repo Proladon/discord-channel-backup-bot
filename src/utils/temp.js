@@ -1,6 +1,8 @@
-import { ensureFile, writeJson } from 'fs-extra'
+import { ensureFile, writeJson, createWriteStream, ensureDir } from 'fs-extra'
+import { wait } from '@/utils/helper'
+import axios from 'axios'
 
-export const saveTempFile = async (data, serialNum) => {
+export const saveMessagesToTemp = async (data, serialNum) => {
   try {
     const filePath = `./temp/temp.${serialNum}.json`
     await ensureFile(filePath)
@@ -22,4 +24,22 @@ export const sortTempFilesName = (tempFilesArray) => {
     return bFileNum - aFileNum
   })
   return list
+}
+
+export const saveMessageFilesToTemp = async (msg) => {
+  if (msg.attachments.length) {
+    for (const attachment of msg.attachments) {
+      const f = await axios({
+        method: 'GET',
+        url: attachment.proxy_url,
+        responseType: 'stream',
+      })
+
+      await ensureDir(`./temp/files/${msg.id}`)
+      f.data.pipe(
+        createWriteStream(`./temp/files/${msg.id}/${attachment.filename}`)
+      )
+      await wait(500)
+    }
+  }
 }

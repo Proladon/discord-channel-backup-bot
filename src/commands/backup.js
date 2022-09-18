@@ -1,12 +1,18 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
 import { GetChannelMessages, FindChannelMessage } from '@/api/channel'
-import { saveTempFile, sortTempFilesName } from '@/utils/temp'
+
+// utils
+import {
+  saveMessageFilesToTemp,
+  sortTempFilesName,
+  saveMessagesToTemp,
+} from '@/utils/temp'
 import { wait, sortByDate } from '@/utils/helper'
 import { showAuthor } from '@/utils/message'
-import fg from 'fast-glob'
-import { readJson, remove, createWriteStream, ensureDir } from 'fs-extra'
 import { findChannel } from '@/utils/channel'
-import axios from 'axios'
+
+import fg from 'fast-glob'
+import { readJson, remove } from 'fs-extra'
 
 const loopEachTempFile = async ({ filesList, fileHandler }) => {
   for (const filePath of filesList) {
@@ -30,25 +36,12 @@ const loopEachMessage = ({ ctx, last, dstChannel, targetChannel }) => {
         return
       }
 
-      if (res.attachments.length) {
-        for (const attachment of res.attachments) {
-          const f = await axios({
-            method: 'GET',
-            url: attachment.proxy_url,
-            responseType: 'stream',
-          })
-
-          await ensureDir(`./temp/files/${msg.id}`)
-          f.data.pipe(
-            createWriteStream(`./temp/files/${msg.id}/${attachment.filename}`)
-          )
-          await wait(500)
-        }
-      }
+      await saveMessageFilesToTemp(res)
 
       await wait(2000)
       // Send msg to target channel
       const dst = await findChannel(ctx.guild, dstChannel.id)
+
       const msgPayload = {
         files: await fg(`./temp/files/${msg.id}/*`),
       }
@@ -56,7 +49,11 @@ const loopEachMessage = ({ ctx, last, dstChannel, targetChannel }) => {
         await dst.send({ embeds: [showAuthor(res)] })
         last = res
       }
+
+      if (!res.content && !res.attachments.length && !res.embeds.length)
+        continue
       if (res.content) msgPayload.content = res.content
+      if (res.embeds.length) msgPayload.embeds = res.embeds
       await dst.send(msgPayload)
       await remove(`./temp/files/${msg.id}`)
     }
@@ -90,7 +87,7 @@ export const execute = async (ctx) => {
   let data = []
   let count = 1
   let start = true
-  const limit = 3
+  const limit = 100
   while (start || data.length === limit) {
     start = false
     const params = {
@@ -104,7 +101,7 @@ export const execute = async (ctx) => {
     if (err) return await ctx.editReply('發生錯誤')
     if (!data.length) break
 
-    await saveTempFile(sortByDate(data), count)
+    await saveMessagesToTemp(sortByDate(data), count)
     await dmMsg.edit(`
     Exporting: ${targetChannel.name}\n
     Proccess: ${count}
