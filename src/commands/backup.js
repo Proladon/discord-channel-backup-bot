@@ -1,5 +1,9 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
-import { GetChannelMessages, FindChannelMessage } from '@/api/channel'
+import {
+  GetChannelMessages,
+  FindChannelMessage,
+  FindChannelById,
+} from '@/api/channel'
 
 // utils
 import {
@@ -18,8 +22,7 @@ const loopEachTempFile = async ({ filesList, fileHandler }) => {
   for (const filePath of filesList) {
     const tempFile = await readJson(filePath)
     await fileHandler(tempFile)
-    // delete temp file
-    await remove(filePath)
+    await remove(filePath) // delete temp messages files
   }
 }
 
@@ -40,7 +43,8 @@ const loopEachMessage = ({ ctx, last, dstChannel, targetChannel }) => {
 
       await wait(2000)
       // Send msg to target channel
-      const dst = await findChannel(ctx.guild, dstChannel.id)
+      // const dst = await findChannel(ctx.guild, dstChannel.id)
+      const [dst] = await FindChannelById(dstChannel.id)
 
       const msgPayload = {
         files: await fg(`./temp/files/${msg.id}/*`),
@@ -67,14 +71,16 @@ export const data = new SlashCommandBuilder()
   .addChannelOption((option) =>
     option.setName('備份頻道').setDescription('要備份的頻道').setRequired(true)
   )
-  .addChannelOption((option) =>
+  .addStringOption((option) =>
     option.setName('目的頻道').setDescription('備份目的頻道').setRequired(true)
   )
 
 export const execute = async (ctx) => {
   await ctx.deferReply({ ephemeral: true })
   const targetChannel = ctx.options.getChannel('備份頻道')
-  const dstChannel = ctx.options.getChannel('目的頻道')
+  // const dstChannel = ctx.options.getChannel('目的頻道')
+  const dstChannelId = ctx.options.getString('目的頻道')
+  const [dstChannel] = await FindChannelById(dstChannelId)
 
   const dm = await ctx.member.createDM()
   const dmMsg = await dm.send(`Exporting: ${targetChannel.name}`)
@@ -101,7 +107,7 @@ export const execute = async (ctx) => {
     if (err) return await ctx.editReply('發生錯誤')
     if (!data.length) break
 
-    await saveMessagesToTemp(sortByDate(data), count)
+    await saveMessagesToTemp(targetChannel, sortByDate(data), count)
     await dmMsg.edit(`
     Exporting: ${targetChannel.name}\n
     Proccess: ${count}
@@ -121,7 +127,7 @@ export const execute = async (ctx) => {
   // load all temp files and fetch all each message //
   // =================================== //
 
-  const tempFiles = await fg(`./temp/*.json`)
+  const tempFiles = await fg(`./temp/channel/${targetChannel.id}/*.json`)
   const tempFilesCount = tempFiles.length
   const sortedTempFilesList = sortTempFilesName(tempFiles)
 

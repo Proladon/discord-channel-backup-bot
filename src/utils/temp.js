@@ -2,9 +2,10 @@ import { ensureFile, writeJson, createWriteStream, ensureDir } from 'fs-extra'
 import { wait } from '@/utils/helper'
 import axios from 'axios'
 
-export const saveMessagesToTemp = async (data, serialNum) => {
+export const saveMessagesToTemp = async (channel, data, serialNum) => {
   try {
-    const filePath = `./temp/temp.${serialNum}.json`
+    await ensureDir(`./temp/channel/${channel.id}`)
+    const filePath = `./temp/channel/${channel.id}/temp.${serialNum}.json`
     await ensureFile(filePath)
     await writeJson(filePath, { messages: data })
     return true
