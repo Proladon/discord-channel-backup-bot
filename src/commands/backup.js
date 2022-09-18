@@ -1,29 +1,62 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
 import { GetChannelMessages, FindChannelMessage } from '@/api/channel'
-import { saveTempFile } from '@/utils/temp'
-import { wait } from '@/utils/helper'
+import { saveTempFile, sortTempFilesName } from '@/utils/temp'
+import { wait, sortByDate } from '@/utils/helper'
 import fg from 'fast-glob'
-import { copyFileSync, readJson } from 'fs-extra'
+import { readJson, remove, createWriteStream, ensureDir } from 'fs-extra'
+import { findChannel } from '@/utils/channel'
+import axios from 'axios'
 
-const sortDateData = (data) => {
-  const cloneData = [...data]
-  return cloneData.sort((a, b) => {
-    const aDate = new Date(a.date)
-    const bDate = new Date(b.date)
-    return +aDate - bDate
-  })
+const loopEachTempFile = async ({ filesList, fileHandler }) => {
+  for (const filePath of filesList) {
+    const tempFile = await readJson(filePath)
+    await fileHandler(tempFile)
+    // delete temp file
+    await remove(filePath)
+  }
 }
 
-const sortTempFiles = (tempFilesArray) => {
-  const list = [...tempFilesArray]
-  list.sort((a, b) => {
-    const alist = a.split('.')
-    const blist = b.split('.')
-    const aFileNum = Number(alist[alist.length - 2])
-    const bFileNum = Number(blist[blist.length - 2])
-    return bFileNum - aFileNum
-  })
-  return list
+const loopEachMessage = ({ ctx, dstChannel, targetChannel }) => {
+  return async (tempFile) => {
+    for (const msg of tempFile.messages) {
+      const [res, err] = await FindChannelMessage({
+        channel_id: targetChannel.id,
+        message_id: msg.id,
+      })
+      if (err) {
+        console.log(err)
+        await ctx.editReply('發生錯誤')
+        return
+      }
+      console.log(res)
+
+      if (res.attachments.length) {
+        for (const attachment of res.attachments) {
+          const f = await axios({
+            method: 'GET',
+            url: attachment.proxy_url,
+            responseType: 'stream',
+          })
+
+          await ensureDir(`./temp/files/${msg.id}`)
+          f.data.pipe(
+            createWriteStream(`./temp/files/${msg.id}/${attachment.filename}`)
+          )
+          await wait(500)
+        }
+      }
+
+      await wait(2000)
+      // Send msg to target channel
+      const dst = await findChannel(ctx.guild, dstChannel.id)
+      const msgPayload = {
+        files: await fg(`./temp/files/${msg.id}/*`),
+      }
+      if (res.content) msgPayload.content = res.content
+      await dst.send(msgPayload)
+      await remove(`./temp/files/${msg.id}`)
+    }
+  }
 }
 
 export const data = new SlashCommandBuilder()
@@ -38,7 +71,7 @@ export const data = new SlashCommandBuilder()
   )
 
 export const execute = async (ctx) => {
-  await ctx.deferReply()
+  await ctx.deferReply({ ephemeral: true })
   const targetChannel = ctx.options.getChannel('備份頻道')
   const dstChannel = ctx.options.getChannel('目的頻道')
 
@@ -67,7 +100,7 @@ export const execute = async (ctx) => {
     if (err) return await ctx.editReply('發生錯誤')
     if (!data.length) break
 
-    await saveTempFile(sortDateData(data), count)
+    await saveTempFile(sortByDate(data), count)
     await dmMsg.edit(`
     Exporting: ${targetChannel.name}\n
     Proccess: ${count}
@@ -89,26 +122,18 @@ export const execute = async (ctx) => {
 
   const tempFiles = await fg(`./temp/*.json`)
   const tempFilesCount = tempFiles.length
-  const sortedTempFilesList = sortTempFiles(tempFiles)
+  const sortedTempFilesList = sortTempFilesName(tempFiles)
 
   console.log('load temp files ...')
-
-  for (const filePath of sortedTempFilesList) {
-    const temp = await readJson(filePath)
-    for (const msg of temp.messages) {
-      const [res, err] = await FindChannelMessage({
-        channel_id: targetChannel.id,
-        message_id: msg.id,
-      })
-      if (err) {
-        console.log(err)
-        await ctx.editReply('發生錯誤')
-        return
-      }
-      await wait(2000)
-      console.log(res)
-    }
-  }
+  await loopEachTempFile({
+    filesList: sortedTempFilesList,
+    fileHandler: loopEachMessage({
+      ctx,
+      targetChannel,
+      dstChannel,
+    }),
+  })
 
   await ctx.editReply(`done`)
+  console.log('done.')
 }
