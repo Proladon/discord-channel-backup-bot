@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
 import { GetChannelMessages, FindChannelMessage } from '@/api/channel'
 import { saveTempFile, sortTempFilesName } from '@/utils/temp'
 import { wait, sortByDate } from '@/utils/helper'
+import { showAuthor } from '@/utils/message'
 import fg from 'fast-glob'
 import { readJson, remove, createWriteStream, ensureDir } from 'fs-extra'
 import { findChannel } from '@/utils/channel'
@@ -16,7 +17,7 @@ const loopEachTempFile = async ({ filesList, fileHandler }) => {
   }
 }
 
-const loopEachMessage = ({ ctx, dstChannel, targetChannel }) => {
+const loopEachMessage = ({ ctx, last, dstChannel, targetChannel }) => {
   return async (tempFile) => {
     for (const msg of tempFile.messages) {
       const [res, err] = await FindChannelMessage({
@@ -28,7 +29,6 @@ const loopEachMessage = ({ ctx, dstChannel, targetChannel }) => {
         await ctx.editReply('發生錯誤')
         return
       }
-      console.log(res)
 
       if (res.attachments.length) {
         for (const attachment of res.attachments) {
@@ -51,6 +51,10 @@ const loopEachMessage = ({ ctx, dstChannel, targetChannel }) => {
       const dst = await findChannel(ctx.guild, dstChannel.id)
       const msgPayload = {
         files: await fg(`./temp/files/${msg.id}/*`),
+      }
+      if (last.author.id !== res.author.id) {
+        await dst.send({ embeds: [showAuthor(res)] })
+        last = res
       }
       if (res.content) msgPayload.content = res.content
       await dst.send(msgPayload)
@@ -82,7 +86,7 @@ export const execute = async (ctx) => {
   // =================================== //
   // get all channel messages and save temp files //
   // =================================== //
-
+  let last = { author: { id: '' } }
   let data = []
   let count = 1
   let start = true
@@ -129,6 +133,7 @@ export const execute = async (ctx) => {
     filesList: sortedTempFilesList,
     fileHandler: loopEachMessage({
       ctx,
+      last,
       targetChannel,
       dstChannel,
     }),
