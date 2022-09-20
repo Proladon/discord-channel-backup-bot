@@ -43,14 +43,11 @@ const loopEachMessage = ({ ctx, last, dstChannel, targetChannel }) => {
 
       await wait(2000)
       // Send msg to target channel
-      // const dst = await findChannel(ctx.guild, dstChannel.id)
-      const [dst] = await FindChannelById(dstChannel.id)
-
       const msgPayload = {
         files: await fg(`./temp/files/${msg.id}/*`),
       }
       if (last.author.id !== res.author.id) {
-        await dst.send({ embeds: [showAuthor(res)] })
+        await dstChannel.send({ embeds: [showAuthor(res)] })
         last = res
       }
 
@@ -58,7 +55,7 @@ const loopEachMessage = ({ ctx, last, dstChannel, targetChannel }) => {
         continue
       if (res.content) msgPayload.content = res.content
       if (res.embeds.length) msgPayload.embeds = res.embeds
-      await dst.send(msgPayload)
+      await dstChannel.send(msgPayload)
       await remove(`./temp/files/${msg.id}`)
     }
   }
@@ -79,8 +76,9 @@ export const execute = async (ctx) => {
   await ctx.deferReply({ ephemeral: true })
   const targetChannel = ctx.options.getChannel('備份頻道')
   // const dstChannel = ctx.options.getChannel('目的頻道')
+
   const dstChannelId = ctx.options.getString('目的頻道')
-  const [dstChannel] = await FindChannelById(dstChannelId)
+  const dstChannel = await ctx.client.channels.fetch(dstChannelId)
 
   const dm = await ctx.member.createDM()
   const dmMsg = await dm.send(`Exporting: ${targetChannel.name}`)
@@ -141,7 +139,7 @@ export const execute = async (ctx) => {
       dstChannel,
     }),
   })
-
+  await remove(`./temp/channel/${targetChannel.id}`)
   await ctx.editReply(`done`)
   console.log('done.')
 }
