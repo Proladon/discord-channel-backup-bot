@@ -1,9 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
-import {
-  GetChannelMessages,
-  FindChannelMessage,
-  FindChannelById,
-} from '@/api/channel'
+import { GetChannelMessages, FindChannelMessage } from '@/api/channel'
+import config from '@/config'
 
 // utils
 import {
@@ -13,10 +10,11 @@ import {
 } from '@/utils/temp'
 import { wait, sortByDate } from '@/utils/helper'
 import { showAuthor } from '@/utils/message'
-import { findChannel } from '@/utils/channel'
 
 import fg from 'fast-glob'
 import { readJson, remove } from 'fs-extra'
+
+// ANCHOR Methods
 
 const loopEachTempFile = async ({ filesList, fileHandler }) => {
   for (const filePath of filesList) {
@@ -41,8 +39,8 @@ const loopEachMessage = ({ ctx, last, dstChannel, targetChannel }) => {
 
       await saveMessageFilesToTemp(res)
 
-      await wait(2000)
       // Send msg to target channel
+      await wait(config.Interval.sendMsg)
       const msgPayload = {
         files: await fg(`./temp/files/${msg.id}/*`),
       }
@@ -61,6 +59,36 @@ const loopEachMessage = ({ ctx, last, dstChannel, targetChannel }) => {
   }
 }
 
+const saveHistoryMessagesLinkTempFiles = async ({ fetchEachLimit }) => {
+  if (!fetchEachLimit) fetchEachLimit = 100
+  let data = []
+  let count = 1
+  let start = true
+  while (start || data.length === fetchEachLimit) {
+    start = false
+    const params = {
+      channel_id: targetChannel.id,
+      fetchEachLimit,
+    }
+    if (data.length === fetchEachLimit)
+      params.before = data[fetchEachLimit - 1].id
+    const [res, err] = await GetChannelMessages(params)
+    data = res.map((msg) => ({ id: msg.id, date: msg.timestamp }))
+
+    if (err) return await ctx.editReply('發生錯誤')
+    if (!data.length) break
+
+    await saveMessagesToTemp(targetChannel, sortByDate(data), count)
+    await dmMsg.edit(`
+    Exporting: ${targetChannel.name}\n
+    Proccess: ${count}
+    `)
+    count++
+    await wait(config.Interval.fetchChannelHistoryMsg)
+  }
+}
+
+// ANCHOR Slash Command
 export const data = new SlashCommandBuilder()
   .setName('backup')
   .setDescription('備份指定頻道的所有訊息至另外一個伺服器頻道')
@@ -88,31 +116,9 @@ export const execute = async (ctx) => {
   // get all channel messages and save temp files //
   // =================================== //
   let last = { author: { id: '' } }
-  let data = []
-  let count = 1
-  let start = true
-  const limit = 100
-  while (start || data.length === limit) {
-    start = false
-    const params = {
-      channel_id: targetChannel.id,
-      limit,
-    }
-    if (data.length === limit) params.before = data[limit - 1].id
-    const [res, err] = await GetChannelMessages(params)
-    data = res.map((msg) => ({ id: msg.id, date: msg.timestamp }))
-
-    if (err) return await ctx.editReply('發生錯誤')
-    if (!data.length) break
-
-    await saveMessagesToTemp(targetChannel, sortByDate(data), count)
-    await dmMsg.edit(`
-    Exporting: ${targetChannel.name}\n
-    Proccess: ${count}
-    `)
-    count++
-    await wait(1000)
-  }
+  saveHistoryMessagesLinkTempFiles({
+    fetchEachLimit: 100,
+  })
 
   await dmMsg.edit(`
     Exporting: ${targetChannel.name}\n
