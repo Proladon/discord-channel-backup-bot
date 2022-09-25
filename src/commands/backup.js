@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { remove } from 'fs-extra'
-import Backup from '@/store'
+import Backup from '@/Service'
 
 const Service = new Backup()
 const state = Service.state
