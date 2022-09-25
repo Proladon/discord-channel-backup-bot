@@ -12,51 +12,77 @@ import config from '@/config'
 import { wait, sortByDate } from '@/utils/helper'
 import fg from 'fast-glob'
 import axios from 'axios'
+import dayjs from 'dayjs'
+import duration from 'dayjs/plugin/duration'
 
-export default class Backup {
+dayjs.extend(duration)
+
+export default class BackupService {
   constructor() {
     this.state = {
       ctx: null,
+      startTime: null,
       last: { author: { id: '' } },
-      totalMessagesCount: 0,
-      rootCtx: null,
-      targetChannel: null,
-      dstChannel: null,
-      ctxChaneel: null,
-      userDMChannel: null,
+      userDM: {
+        channel: null,
+        ctx: null,
+      },
+
+      tempFiles: {
+        total: 0,
+        at: 0,
+      },
+
+      stage: {
+        total: 0,
+        at: 0,
+      },
+
+      overAll: {
+        total: 0,
+        at: 0,
+      },
     }
   }
 
   resetState() {
     this.state = {
+      ctx: null,
       last: { author: { id: '' } },
-      totalMessagesCount: 0,
-      rootCtx: null,
+      userDM: {
+        channel: null,
+        ctx: null,
+      },
 
-      targetChannel: null,
-      dstChannel: null,
-      ctxChaneel: null,
-      userDMChannel: null,
-      dmCtx: null,
+      tempFiles: {
+        total: 0,
+        at: 0,
+      },
+
+      stage: {
+        total: 0,
+        at: 0,
+      },
     }
   }
 
   async backup({ targetChannel, dstChannel }) {
     // STEP.1 fetch all messages and save to temp link files
-    console.log('step.1')
     await this.saveHistoryMessagesLinkTempFiles({
       targetChannel,
       fetchEachLimit: 100,
     })
 
     // STEP.2 loop all message temp files
-    console.log('step.2')
     const tempFilesList = await this.getMessageTempFilesList(targetChannel)
-    console.log('tempFilesList', tempFilesList.length)
+    this.state.tempFiles.total += tempFilesList.length
+    this.state.stage.total = tempFilesList.length
+    this.state.stage.at = 0
+
     for (const filePath of tempFilesList) {
+      this.state.stage.at++
       const tempFile = await readJson(filePath)
       // STEP.3 loop all message in temp file
-      console.log('step.3')
       await this.loopEachMessage(tempFile, targetChannel, dstChannel)
       await remove(filePath)
     }
@@ -95,12 +121,15 @@ export default class Backup {
       })
 
       count++
+      this.state.overAll.total += data.length
       await wait(config.Interval.fetchChannelHistoryMsg)
     }
   }
 
   async loopEachMessage(tempFile, targetChannel, dstChannel) {
     for (const msgLink of tempFile.messages) {
+      this.state.overAll.at++
+      await this.getCurrentProccess(targetChannel)
       const [msg, err] = await FindChannelMessage({
         channel_id: targetChannel.id,
         message_id: msgLink.id,
@@ -212,5 +241,50 @@ export default class Backup {
         await wait(500)
       }
     }
+  }
+
+  async getCurrentProccess(targetChannel) {
+    const state = this.state
+
+    const startTime = dayjs(this.state.startTime)
+    const now = dayjs()
+    const timeUsed = dayjs.duration(now.diff(startTime))
+
+    const stageTotalMessage = state.stage.total
+    const stageAtMessage = state.stage.at
+
+    const totalMessages = this.state.overAll.total
+    const overAllAt = this.state.overAll.at
+
+    const embed = new EmbedBuilder()
+      .setColor(0x0099ff)
+      .setTitle(`Backup Proccess: ${targetChannel.name}`)
+      .addFields(
+        // { name: 'At File', value: `${atFile}/${totalFiles}`, inline: true },
+        // { name: 'At File Message', value: 'Value 2', inline: true },
+        {
+          name: 'Used Time',
+          value: `${timeUsed.format('HH:mm:ss')}`,
+          inline: true,
+        },
+        {
+          name: 'Total Messages',
+          value: `${overAllAt}/${totalMessages}`,
+          inline: true,
+        },
+        { name: '\u200b', value: '\u200b', inline: false },
+        {
+          name: 'Stage Proccess',
+          value: `${state.stage.at}/${state.stage.total}`,
+          inline: true,
+        },
+        {
+          name: 'Stage Proccess',
+          value: `${state.stage.at}/${state.stage.total}`,
+          inline: true,
+        }
+      )
+
+    await this.state.userDM.ctx.edit({ embeds: [embed] })
   }
 }
