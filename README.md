@@ -1,1 +1,5 @@
-# sz-channel-backup
+# Discord Channel Backup Bot
+
+## Why
+
+## How it's works
