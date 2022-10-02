@@ -10,7 +10,7 @@ So if we wanna keep all assets and aslo no need own disk sapce, the way is resen
 
 ### Step.1
 
-Bot will fetch target channel all history messages, and save all messages id array json temp files to local
+Bot will fetch target channel all history messages, and save all messages id array json temp files to local temp folder
 
 ### Step.2
 
@@ -18,7 +18,7 @@ Recursive all temp files, find each message by id, and then deal it message by e
 
 if message have attachments:
 
-1. save all attachments temp files to local
+1. save all attachments temp files to local temp folder
 2. send messages content with attachments
 3. delete attachments temp
 
