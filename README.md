@@ -65,10 +65,10 @@ https://github.com/Proladon/discord-channel-backup-bot.git
 
 3. ### Start the bot
 
-- First install the project dependencies
-  - excute terminal command `yarn` or `npm install`
-- Start the Bot
-  - excute terminal command `yarn bot` or `npm run bot`
+   - First install the project dependencies
+   - excute terminal command `yarn` or `npm install`
+   - Start the Bot
+   - excute terminal command `yarn bot` or `npm run bot`
 
 ## Bot Command
 
