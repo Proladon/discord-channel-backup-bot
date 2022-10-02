@@ -13,6 +13,11 @@
   </tr>
 </table>
 
+- [Why](#why)
+- [How it's works](#how-its-works)
+- [Installation](#installation)
+- [Bot Command](#bot-command)
+
 ## Why
 
 Althought already has [DiscordChatExporter](https://github.com/Tyrrrz/DiscordChatExporter), but the problem of `DiscordChatExporter` is that you have to save all messages assets in your own disk or cloud drive, which need a lot of disk sapce. If you use `DiscordChatExporter` but not chose download all messages assets, and then you delete the source channel, all of these assets cdn link will be lost.
@@ -65,7 +70,7 @@ https://github.com/Proladon/discord-channel-backup-bot.git
 - Start the Bot
   - excute terminal command `yarn bot` or `npm run bot`
 
-## Bot Backup Command
+## Bot Command
 
 ### Slash Command: `backup <target> <dst>`
 
