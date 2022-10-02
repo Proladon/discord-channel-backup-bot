@@ -13,10 +13,18 @@
   </tr>
 </table>
 
+- [Backup Supports](#backup-supports)
 - [Why](#why)
 - [How it's works](#how-its-works)
 - [Installation](#installation)
 - [Bot Command](#bot-command)
+
+## Backup Supports
+
+✅ Embeds  
+✅ Attachments  
+✅ Threads  
+❌ Forum (not implement yet)
 
 ## Why
 
