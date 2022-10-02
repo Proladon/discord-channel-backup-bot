@@ -71,6 +71,7 @@ https://github.com/Proladon/discord-channel-backup-bot.git
 
    - rename `.env.example` file to `.env`
    - give required values in `.env` file
+   - [optional] you can adjustify backup interval times by `config.js`
 
 3. ### Start the bot
 
