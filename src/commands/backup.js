@@ -21,8 +21,6 @@ export const execute = async (ctx) => {
   await ctx.deferReply({ ephemeral: true })
 
   state.ctx = ctx
-
-  // STEP.1 init channels
   const targetChannel = ctx.options.getChannel('備份頻道')
   const dstChannelId = ctx.options.getString('目的頻道')
   const dstChannel = await ctx.client.channels.fetch(dstChannelId)
