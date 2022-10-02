@@ -18,6 +18,7 @@
 - [How it's works](#how-its-works)
 - [Installation](#installation)
 - [Bot Command](#bot-command)
+- [Disadvantage](#disadvantage)
 
 ## Backup Supports
 
@@ -84,3 +85,7 @@ https://github.com/Proladon/discord-channel-backup-bot.git
 
 - `target`: target channel, which channel you wanna backup
 - `dst`: dst `channel ID`, which channel you wanna backup to (can cross server, but also required bot had in server there)
+
+## Disadvantage
+
+backup proccess will take very very ~ long times, cause of discord api rate limit, so we need to wait few seconds with deal with each message in purporse.
