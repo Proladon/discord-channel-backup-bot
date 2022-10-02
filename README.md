@@ -40,3 +40,34 @@ if message not have attachments:
 1. send messages content
 
 > temp file will delete after each file messages done.
+
+---
+
+## Installation
+
+1. ### Download or clone this repo
+   - [Download this repo](https://github.com/Proladon/discord-channel-backup-bot/archive/refs/heads/main.zip)
+   - Clone this repo
+
+```
+https://github.com/Proladon/discord-channel-backup-bot.git
+```
+
+2. ### Setting up bot
+
+   - rename `.env.example` file to `.env`
+   - give required values in `.env` file
+
+3. ### Start the bot
+
+- First install the project dependencies
+  - excute terminal command `yarn` or `npm install`
+- Start the Bot
+  - excute terminal command `yarn bot` or `npm run bot`
+
+## Bot Backup Command
+
+### Slash Command: `backup <target> <dst>`
+
+- `target`: target channel, which channel you wanna backup
+- `dst`: dst `channel ID`, which channel you wanna backup to (can cross server, but also required bot had in server there)
